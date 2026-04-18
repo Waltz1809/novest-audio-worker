@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -76,8 +77,9 @@ def html_to_text(html: str) -> str:
 
 
 # ─── ffmpeg helpers ────────────────────────────────────────────────────────────
-HLS_BITRATE  = "48k"   # 32k=~4MB, 48k=~5.5MB, 64k=~8MB per 45min chapter
-HLS_SEGMENT  = "10"   # giây mỗi segment
+HLS_BITRATE    = "48k"   # 32k=~4MB, 48k=~5.5MB, 64k=~8MB per 45min chapter
+HLS_SEGMENT    = "10"   # giây mỗi segment
+UPLOAD_WORKERS = 6      # số luồng upload song song
 
 
 def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
@@ -261,16 +263,25 @@ def upload(
     duration = get_duration(wav_path)
     log(f"→ {len(segments)} segments, {duration:.0f}s")
 
-    # Upload init segment (fMP4)
+    # Upload init segment
     init_mp4 = hls_dir / "init.mp4"
     if init_mp4.exists():
         upload_file_to_r2(chapter_id, init_mp4, "video/mp4")
         log("  init.mp4 ✓")
 
-    log(f"Uploading {len(segments)} segments...")
-    for i, seg in enumerate(segments):
-        upload_file_to_r2(chapter_id, seg, "video/iso.segment")
-        log(f"  {seg.name} ({i + 1}/{len(segments)})")
+    # Upload segments song song
+    log(f"Uploading {len(segments)} segments (x{UPLOAD_WORKERS} parallel)...")
+
+    def _upload_seg(seg: Path) -> str:
+        return upload_file_to_r2(chapter_id, seg, "video/iso.segment")
+
+    completed = 0
+    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as executor:
+        futures = {executor.submit(_upload_seg, seg): seg for seg in segments}
+        for future in as_completed(futures):
+            future.result()  # raise nếu có lỗi
+            completed += 1
+            log(f"  {completed}/{len(segments)} segments")
 
     playlist_key = upload_file_to_r2(chapter_id, hls_dir / "playlist.m3u8", "application/vnd.apple.mpegurl")
     log(f"  playlist.m3u8 ✓")
