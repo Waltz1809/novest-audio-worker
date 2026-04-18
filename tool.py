@@ -82,7 +82,9 @@ HLS_SEGMENT  = "10"   # giây mỗi segment
 
 def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
     hls_dir.mkdir(parents=True, exist_ok=True)
-    playlist = hls_dir / "playlist.m3u8"
+    playlist  = hls_dir / "playlist.m3u8"
+    init_path = hls_dir / "init.mp4"   # absolute path để ffmpeg tạo đúng chỗ
+
     cmd = [
         "ffmpeg", "-y",
         "-i", str(wav_path),
@@ -90,8 +92,8 @@ def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
         "-f", "hls",
         "-hls_time", HLS_SEGMENT,
         "-hls_list_size", "0",
-        "-hls_segment_type", "fmp4",               # fMP4 thay vì MPEG-TS
-        "-hls_fmp4_init_filename", "init.mp4",     # init segment bắt buộc với fMP4
+        "-hls_segment_type", "fmp4",
+        "-hls_fmp4_init_filename", str(init_path),   # absolute path
         "-hls_segment_filename", str(hls_dir / "seg%03d.m4s"),
         str(playlist),
     ]
@@ -105,6 +107,18 @@ def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
         )
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg lỗi:\n{result.stderr[-600:]}")
+
+    if not init_path.exists():
+        files = [f.name for f in hls_dir.iterdir()]
+        raise RuntimeError(f"init.mp4 không được tạo. Files trong hls/: {files}")
+
+    # ffmpeg dùng absolute path trong playlist vì ta truyền absolute vào
+    # → rewrite về relative "init.mp4" để presign route hoạt động đúng
+    content = playlist.read_text(encoding="utf-8")
+    content = content.replace(str(init_path).replace("\\", "/"), "init.mp4")
+    content = content.replace(str(init_path), "init.mp4")
+    playlist.write_text(content, encoding="utf-8")
+
     return sorted(hls_dir.glob("seg*.m4s"))
 
 
