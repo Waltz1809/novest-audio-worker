@@ -1,6 +1,8 @@
 ﻿services:
   vieneu:
     image: pnnbao/vieneu-tts:serve
+    environment:                           # <-- THÊM DÒNG NÀY
+      - NVIDIA_DISABLE_REQUIRE=1           # <-- THÊM DÒNG NÀY
     deploy:
       resources:
         reservations:
