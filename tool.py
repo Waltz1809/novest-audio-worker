@@ -95,7 +95,14 @@ def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
         "-hls_segment_filename", str(hls_dir / "seg%03d.m4s"),
         str(playlist),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Không tìm thấy ffmpeg. Cài ffmpeg và thêm vào PATH:\n"
+            "  Windows: winget install ffmpeg\n"
+            "  Hoặc tải tại: https://www.gyan.dev/ffmpeg/builds/"
+        )
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg lỗi:\n{result.stderr[-600:]}")
     return sorted(hls_dir.glob("seg*.m4s"))
