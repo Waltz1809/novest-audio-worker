@@ -1,0 +1,22 @@
+﻿services:
+  vieneu:
+    image: pnnbao/vieneu-tts:serve
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    ports:
+      - "23333:23333"
+
+  worker:
+    build: .
+    depends_on: [vieneu]
+    environment:
+      - VIENEU_API=http://vieneu:23333/v1
+      - NOVEST_API=https://novest.me
+      - WORKER_TOTP_SECRET=${WORKER_TOTP_SECRET}
+      - WORKER_MACHINE=desktop-5060
+    volumes:
+      - ./tmp:/tmp/audio
+    command: python worker/main.py --mode scan --interval 300
