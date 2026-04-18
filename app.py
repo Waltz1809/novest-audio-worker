@@ -153,7 +153,7 @@ biết chương đó thuộc về đâu khi upload.
 """)
             with gr.Row():
                 inp_novel_id = gr.Number(label="Novel ID", precision=0, minimum=1)
-                inp_limit    = gr.Slider(label="Số chương tối đa", minimum=1, maximum=50, value=10, step=1)
+                inp_limit    = gr.Slider(label="Số chương tối đa", minimum=1, maximum=100, value=20, step=1)
             inp_range  = gr.Textbox(label="Chapter ID range (tuỳ chọn)", placeholder="vd: 100-200")
             btn_fetch  = gr.Button("📥 Fetch", variant="primary")
             out_fetch  = gr.Markdown()
