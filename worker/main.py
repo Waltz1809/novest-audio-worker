@@ -21,6 +21,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -124,7 +125,7 @@ def process_chapter(task: dict, api: NovEstAPIClient, tts: VieNeuTTSEngine,
 
 def run_batch(api: NovEstAPIClient, tts: VieNeuTTSEngine,
               processor: AudioProcessor, uploader: R2Uploader,
-              novel_id: int | None, chapters: str | None, limit: int) -> None:
+              novel_id: Optional[int], chapters: Optional[str], limit: int) -> None:
     """Mode batch: xử lý một lần rồi thoát."""
     log.info(f"Mode: BATCH | novel_id={novel_id} | chapters={chapters} | limit={limit}")
 

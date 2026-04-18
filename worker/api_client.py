@@ -6,7 +6,7 @@ Tự động gen OTP code trước mỗi request.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import pyotp
 import requests
@@ -32,7 +32,7 @@ class NovEstAPIClient:
             "User-Agent": f"NovEstWorker/{self.machine_name}",
         }
 
-    def get_tasks(self, limit: int = 5, novel_id: int | None = None) -> list[dict]:
+    def get_tasks(self, limit: int = 5, novel_id: Optional[int] = None) -> list[dict]:
         """
         GET /api/worker/tasks
         Lấy danh sách chapter cần gen audio.
