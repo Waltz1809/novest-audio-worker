@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "worker/main.py", "--mode", "scan", "--interval", "300"]
+CMD ["python", "worker/main.py", "--mode", "watch", "--interval", "300"]

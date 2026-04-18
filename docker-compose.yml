@@ -1,4 +1,4 @@
-﻿services:
+services:
   vieneu:
     image: pnnbao/vieneu-tts:serve
     environment:                           # <-- THÊM DÒNG NÀY
@@ -15,10 +15,10 @@
     build: .
     depends_on: [vieneu]
     environment:
-      - VIENEU_API=http://vieneu:23333/v1
-      - NOVEST_API=https://novest.me
+      - TTS_API_URL=http://vieneu:23333/v1
+      - NOVEST_API_URL=https://novest.me
       - WORKER_TOTP_SECRET=${WORKER_TOTP_SECRET}
       - WORKER_MACHINE=desktop-5060
     volumes:
       - ./tmp:/tmp/audio
-    command: python worker/main.py --mode scan --interval 300
+    command: python worker/main.py --mode watch --interval 300
