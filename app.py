@@ -39,6 +39,17 @@ def _all_folders() -> list[str]:
 
 # ─── Tab: Tải chương ───────────────────────────────────────────────────────────
 
+def do_reset_novel(novel_id):
+    try:
+        nid = int(novel_id) if str(novel_id).strip() else None
+        if not nid:
+            return "⚠️ Nhập Novel ID trước."
+        count = tool.reset_novel(nid)
+        return f"✅ Đã reset **{count}** chapter PROCESSING → FAILED. Fetch lại bình thường."
+    except Exception as e:
+        return f"❌ Lỗi: {e}"
+
+
 def do_fetch(novel_id, limit, chapters_range):
     try:
         nid = int(novel_id) if str(novel_id).strip() else None
@@ -155,10 +166,13 @@ biết chương đó thuộc về đâu khi upload.
                 inp_novel_id = gr.Number(label="Novel ID", precision=0, minimum=1)
                 inp_limit    = gr.Slider(label="Số chương tối đa", minimum=1, maximum=100, value=20, step=1)
             inp_range  = gr.Textbox(label="Chapter ID range (tuỳ chọn)", placeholder="vd: 100-200")
-            btn_fetch  = gr.Button("📥 Fetch", variant="primary")
-            out_fetch  = gr.Markdown()
+            with gr.Row():
+                btn_fetch       = gr.Button("📥 Fetch", variant="primary", scale=3)
+                btn_reset_novel = gr.Button("🔄 Reset PROCESSING", variant="stop", scale=1)
+            out_fetch = gr.Markdown()
 
             btn_fetch.click(do_fetch, inputs=[inp_novel_id, inp_limit, inp_range], outputs=[out_fetch, out_fetch])
+            btn_reset_novel.click(do_reset_novel, inputs=[inp_novel_id], outputs=[out_fetch])
 
         # ── Tab 2: Upload ────────────────────────────────────────────────────
         with gr.Tab("🚀 Upload"):

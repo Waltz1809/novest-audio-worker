@@ -136,14 +136,15 @@ def fetch(
     limit: int = 10,
 ) -> list[dict]:
     """
-    Lấy danh sách task từ server, lưu vào chapters/.
+    Lấy nội dung chương từ server, lưu vào chapters/.
+    Dùng /content (không side effect) thay vì /tasks.
     Trả về list[dict] với thông tin từng chương đã lưu.
     """
-    params: dict = {"limit": limit}
-    if novel_id:
-        params["novelId"] = novel_id
+    if not novel_id:
+        raise ValueError("Bắt buộc phải có novelId khi fetch")
 
-    resp = requests.get(f"{API_URL}/api/worker/tasks", headers=_otp_headers(), params=params, timeout=30)
+    params: dict = {"limit": limit, "novelId": novel_id}
+    resp = requests.get(f"{API_URL}/api/worker/content", headers=_otp_headers(), params=params, timeout=30)
     resp.raise_for_status()
     tasks: list[dict] = resp.json()
 
@@ -223,6 +224,16 @@ def upload(
     wav_path = wav_files[0]
     log(f"WAV: {wav_path.name} ({wav_path.stat().st_size / 1024 / 1024:.1f} MB)")
 
+    # Claim chapter → PROCESSING trước khi upload
+    log("Claiming chapter...")
+    claim_resp = requests.post(
+        f"{API_URL}/api/worker/claim",
+        headers=_otp_headers(),
+        json={"chapterId": chapter_id},
+        timeout=30,
+    )
+    claim_resp.raise_for_status()
+
     log("Converting WAV → HLS...")
     hls_dir  = folder / "hls"
     segments = wav_to_hls(wav_path, hls_dir)
@@ -294,7 +305,7 @@ def list_chapters() -> list[dict]:
     return results
 
 
-# ─── Core: reset ───────────────────────────────────────────────────────────────
+# ─── Core: reset chapter ───────────────────────────────────────────────────────
 def reset(folder_path: str) -> None:
     """Báo FAILED để chapter được fetch lại."""
     meta = json.loads((Path(folder_path) / "meta.json").read_text(encoding="utf-8"))
@@ -305,6 +316,19 @@ def reset(folder_path: str) -> None:
         timeout=30,
     )
     resp.raise_for_status()
+
+
+# ─── Core: reset novel ─────────────────────────────────────────────────────────
+def reset_novel(novel_id: int) -> int:
+    """Reset tất cả chapter PROCESSING của novel về FAILED. Trả về số chapter đã reset."""
+    resp = requests.post(
+        f"{API_URL}/api/worker/reset",
+        headers=_otp_headers(),
+        json={"novelId": novel_id},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json().get("resetCount", 0)
 
 
 # ─── CLI wrapper ───────────────────────────────────────────────────────────────
