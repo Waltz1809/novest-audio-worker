@@ -1,19 +1,31 @@
 services:
   vieneu:
     image: pnnbao/vieneu-tts:serve
-    environment:                           # <-- THÊM DÒNG NÀY
-      - NVIDIA_DISABLE_REQUIRE=1           # <-- THÊM DÒNG NÀY
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - NVIDIA_DISABLE_REQUIRE=1
     deploy:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     ports:
       - "23333:23333"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:23333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
   worker:
     build: .
-    depends_on: [vieneu]
+    depends_on:
+      vieneu:
+        condition: service_healthy
     environment:
       - TTS_API_URL=http://vieneu:23333/v1
       - NOVEST_API_URL=https://novest.me
