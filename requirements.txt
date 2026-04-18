@@ -3,3 +3,4 @@ pyotp
 beautifulsoup4
 lxml
 python-dotenv
+gradio
