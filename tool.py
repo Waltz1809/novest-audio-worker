@@ -76,21 +76,29 @@ def html_to_text(html: str) -> str:
 
 
 # ─── ffmpeg helpers ────────────────────────────────────────────────────────────
+HLS_BITRATE  = "48k"   # 32k=~4MB, 48k=~5.5MB, 64k=~8MB per 45min chapter
+HLS_SEGMENT  = "10"   # giây mỗi segment
+
+
 def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
     hls_dir.mkdir(parents=True, exist_ok=True)
     playlist = hls_dir / "playlist.m3u8"
     cmd = [
         "ffmpeg", "-y",
         "-i", str(wav_path),
-        "-c:a", "libopus", "-b:a", "64k", "-vn",
-        "-f", "hls", "-hls_time", "10", "-hls_list_size", "0",
-        "-hls_segment_filename", str(hls_dir / "seg%03d.ts"),
+        "-c:a", "libopus", "-b:a", HLS_BITRATE, "-vn",
+        "-f", "hls",
+        "-hls_time", HLS_SEGMENT,
+        "-hls_list_size", "0",
+        "-hls_segment_type", "fmp4",               # fMP4 thay vì MPEG-TS
+        "-hls_fmp4_init_filename", "init.mp4",     # init segment bắt buộc với fMP4
+        "-hls_segment_filename", str(hls_dir / "seg%03d.m4s"),
         str(playlist),
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg lỗi:\n{result.stderr[-600:]}")
-    return sorted(hls_dir.glob("seg*.ts"))
+    return sorted(hls_dir.glob("seg*.m4s"))
 
 
 def get_duration(audio_path: Path) -> float:
@@ -221,9 +229,15 @@ def upload(
     duration = get_duration(wav_path)
     log(f"→ {len(segments)} segments, {duration:.0f}s")
 
+    # Upload init segment (fMP4)
+    init_mp4 = hls_dir / "init.mp4"
+    if init_mp4.exists():
+        upload_file_to_r2(chapter_id, init_mp4, "video/mp4")
+        log("  init.mp4 ✓")
+
     log(f"Uploading {len(segments)} segments...")
     for i, seg in enumerate(segments):
-        upload_file_to_r2(chapter_id, seg, "video/mp2t")
+        upload_file_to_r2(chapter_id, seg, "video/iso.segment")
         log(f"  {seg.name} ({i + 1}/{len(segments)})")
 
     playlist_key = upload_file_to_r2(chapter_id, hls_dir / "playlist.m3u8", "application/vnd.apple.mpegurl")
