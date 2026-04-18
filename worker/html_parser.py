@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 # Ký tự / cụm cần loại bỏ hoặc thay thế trước khi TTS
 _REPLACEMENTS = [
     # Thay thế dấu câu đặc biệt
-    (r"[""„"]", '"'),
+    (r'[""„"]', '"'),
     (r"[''‚']", "'"),
     (r"[–—]", ", "),
     (r"…", "..."),
