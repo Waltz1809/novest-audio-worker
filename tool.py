@@ -91,22 +91,21 @@ def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
     #   - ffmpeg mặc định thêm `elst` box vào init.mp4 để skip Opus pre-skip
     #     (~312 samples). Chrome MSE đọc nhầm thành "có data trước time 0",
     #     đóng SourceBuffer → bufferAppendingError loop ở segment 0.
-    #   - Fix: disable edit list (`-write_edit_list 0`) + zero base time
-    #     (`-avoid_negative_ts make_zero`) + CMAF profile (`-movflags +cmaf`).
-    #   - Combo này đảm bảo init.mp4 không có elst, mỗi segment bắt đầu từ
-    #     decode time 0, MSE happy.
+    #   - Fix: dùng `-movflags +cmaf` (CMAF mandates no edit list, default
+    #     base moof, empty moov, ...) + `-avoid_negative_ts make_zero` để
+    #     decode time bắt đầu từ 0.
     cmd = [
         "ffmpeg", "-y",
         "-i", str(wav_path),
         "-c:a", "libopus", "-b:a", HLS_BITRATE, "-vn",
         "-avoid_negative_ts", "make_zero",
-        "-write_edit_list", "0",
         "-f", "hls",
         "-hls_time", HLS_SEGMENT,
         "-hls_list_size", "0",
         "-hls_segment_type", "fmp4",
         "-hls_fmp4_init_filename", str(init_path),   # absolute path
         "-hls_segment_filename", str(hls_dir / "seg%03d.m4s"),
+        "-hls_segment_options", "movflags=+cmaf",
         "-movflags", "+cmaf",
         str(playlist),
     ]
