@@ -88,16 +88,26 @@ def wav_to_hls(wav_path: Path, hls_dir: Path) -> list[Path]:
     init_path = hls_dir / "init.mp4"   # absolute path để ffmpeg tạo đúng chỗ
 
     # Lưu ý quan trọng cho Opus + fMP4 + Chrome MSE (hls.js):
-    #   - ffmpeg mặc định thêm `elst` box vào init.mp4 để skip Opus pre-skip
-    #     (~312 samples). Chrome MSE đọc nhầm thành "có data trước time 0",
-    #     đóng SourceBuffer → bufferAppendingError loop ở segment 0.
-    #   - Fix: dùng `-movflags +cmaf` (CMAF mandates no edit list, default
-    #     base moof, empty moov, ...) + `-avoid_negative_ts make_zero` để
-    #     decode time bắt đầu từ 0.
+    #
+    # [1] Sample rate mismatch:
+    #     - Opus codec internally LUÔN chạy ở 48 kHz, dOps box ghi cứng 48000.
+    #     - Nhưng AudioSampleEntry (MP4 standard box) ghi sample rate của
+    #       INPUT WAV. Nếu input ≠ 48 kHz (VD: 24 kHz từ TTS), 2 box mismatch
+    #       → Chrome MSE reject với:
+    #       "Opus AudioSampleEntry sample rate mismatches OpusSpecificBox..."
+    #     - Fix: -ar 48000 force resample input lên 48 kHz trước khi encode.
+    #
+    # [2] Edit list / pre-skip:
+    #     - ffmpeg thêm `elst` box để skip Opus pre-skip → Chrome MSE confused.
+    #     - Fix: -movflags +cmaf (CMAF không cho phép elst).
+    #
+    # [3] Negative timestamps:
+    #     - Một số input có ts âm → Fix: -avoid_negative_ts make_zero.
     cmd = [
         "ffmpeg", "-y",
         "-i", str(wav_path),
         "-c:a", "libopus", "-b:a", HLS_BITRATE, "-vn",
+        "-ar", "48000",                      # CRITICAL: force Opus native rate
         "-avoid_negative_ts", "make_zero",
         "-f", "hls",
         "-hls_time", HLS_SEGMENT,
