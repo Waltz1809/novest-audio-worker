@@ -5,6 +5,7 @@ Import bởi app.py (Gradio UI) và dùng trực tiếp qua CLI.
 
 CLI usage:
   python tool.py fetch --novel-id 5 --limit 20
+  python tool.py fetch --novel-id 5 --all-novels
   python tool.py upload chapters/123_ten-chuong/
   python tool.py upload-all
   python tool.py list
@@ -177,16 +178,21 @@ def fetch(
     novel_id: Optional[int] = None,
     chapters_range: Optional[str] = None,
     limit: int = 10,
+    all_novels: bool = False,
 ) -> list[dict]:
     """
     Lấy nội dung chương từ server, lưu vào chapters/.
     Dùng /content (không side effect) thay vì /tasks.
     Trả về list[dict] với thông tin từng chương đã lưu.
+
+    all_novels: True → lấy cả truyện chưa bật membership (API: allNovels=1).
     """
     if not novel_id:
         raise ValueError("Bắt buộc phải có novelId khi fetch")
 
     params: dict = {"limit": limit, "novelId": novel_id}
+    if all_novels:
+        params["allNovels"] = "1"
     resp = requests.get(f"{API_URL}/api/worker/content", headers=_otp_headers(), params=params, timeout=30)
     resp.raise_for_status()
     tasks: list[dict] = resp.json()
@@ -385,9 +391,17 @@ def reset_novel(novel_id: int) -> int:
 
 # ─── CLI wrapper ───────────────────────────────────────────────────────────────
 def _cli_fetch(args) -> None:
-    results = fetch(args.novel_id, args.chapters, args.limit)
+    results = fetch(
+        args.novel_id,
+        args.chapters,
+        args.limit,
+        all_novels=getattr(args, "all_novels", False),
+    )
     if not results:
-        print("Không có chương nào. Kiểm tra novel có bật membershipEnabled chưa?")
+        print(
+            "Không có chương nào. Kiểm tra novel đã duyệt (APPROVED) chưa"
+            + ("; hoặc thử thêm --all-novels nếu truyện chưa bật membership." if not getattr(args, "all_novels", False) else ".")
+        )
         return
     print(f"\nĐã tải {len(results)} chương:\n")
     for r in results:
@@ -428,6 +442,11 @@ def main() -> None:
     pf.add_argument("--novel-id", type=int)
     pf.add_argument("--chapters", type=str, help="Range chapterId: '100-200'")
     pf.add_argument("--limit", type=int, default=10)
+    pf.add_argument(
+        "--all-novels",
+        action="store_true",
+        help="Lấy cả truyện chưa bật membership (chỉ cần novel đã duyệt)",
+    )
 
     pu = sub.add_parser("upload", help="Upload WAV → HLS → R2")
     pu.add_argument("folder")

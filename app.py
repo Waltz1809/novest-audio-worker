@@ -50,16 +50,23 @@ def do_reset_novel(novel_id):
         return f"❌ Lỗi: {e}"
 
 
-def do_fetch(novel_id, limit, chapters_range):
+def do_fetch(novel_id, limit, chapters_range, all_novels):
     try:
         nid = int(novel_id) if str(novel_id).strip() else None
         cr  = chapters_range.strip() or None
-        results = tool.fetch(novel_id=nid, chapters_range=cr, limit=int(limit))
+        results = tool.fetch(
+            novel_id=nid, chapters_range=cr, limit=int(limit), all_novels=bool(all_novels)
+        )
     except Exception as e:
         return f"❌ Lỗi: {e}", gr.update()
 
     if not results:
-        return "⚠️ Không có chương nào. Kiểm tra novel có bật membershipEnabled chưa?", gr.update()
+        hint = (
+            " (hoặc tắt tùy chọn membership nếu truyện chưa bật.)"
+            if not all_novels
+            else " (novel đã duyệt APPROVED và còn chương chờ audio?)"
+        )
+        return f"⚠️ Không có chương nào.{hint}", gr.update()
 
     lines = [f"✓ Đã tải **{len(results)}** chương:\n"]
     for r in results:
@@ -166,12 +173,20 @@ biết chương đó thuộc về đâu khi upload.
                 inp_novel_id = gr.Number(label="Novel ID", precision=0, minimum=1)
                 inp_limit    = gr.Slider(label="Số chương tối đa", minimum=1, maximum=100, value=20, step=1)
             inp_range  = gr.Textbox(label="Chapter ID range (tuỳ chọn)", placeholder="vd: 100-200")
+            inp_all_novels = gr.Checkbox(
+                label="Bao gồm cả truyện chưa bật membership (API: allNovels)",
+                value=True,
+            )
             with gr.Row():
                 btn_fetch       = gr.Button("📥 Fetch", variant="primary", scale=3)
                 btn_reset_novel = gr.Button("🔄 Reset PROCESSING", variant="stop", scale=1)
             out_fetch = gr.Markdown()
 
-            btn_fetch.click(do_fetch, inputs=[inp_novel_id, inp_limit, inp_range], outputs=[out_fetch, out_fetch])
+            btn_fetch.click(
+                do_fetch,
+                inputs=[inp_novel_id, inp_limit, inp_range, inp_all_novels],
+                outputs=[out_fetch, out_fetch],
+            )
             btn_reset_novel.click(do_reset_novel, inputs=[inp_novel_id], outputs=[out_fetch])
 
         # ── Tab 2: Upload ────────────────────────────────────────────────────
